@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Forza 4</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            text-align: center;
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .status {
+            font-size: 1.3em;
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 10px;
+            font-weight: bold;
+            min-height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .player1-turn {
+            background: #fef3c7;
+            color: #f59e0b;
+        }
+
+        .player2-turn {
+            background: #fee2e2;
+            color: #ef4444;
+        }
+
+        .winner {
+            background: #d1fae5;
+            color: #10b981;
+        }
+
+        .draw {
+            background: #e0e7ff;
+            color: #6366f1;
+        }
+
+        .board {
+            background: #2563eb;
+            padding: 20px;
+            border-radius: 15px;
+            display: inline-block;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .column-buttons {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .column-btn {
+            background: #3b82f6;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 20px;
+            transition: all 0.2s;
+            color: white;
+        }
+
+        .column-btn:hover:not(:disabled) {
+            background: #60a5fa;
+            transform: translateY(-2px);
+        }
+
+        .column-btn:disabled {
+            background: #94a3b8;
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(7, 70px);
+            grid-template-rows: repeat(6, 70px);
+            gap: 10px;
+        }
+
+        .cell {
+            width: 70px;
+            height: 70px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            box-shadow: inset 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .disc {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            animation: drop 0.5s ease-in;
+        }
+
+        .player1 {
+            background: radial-gradient(circle at 30% 30%, #fbbf24, #f59e0b);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+
+        .player2 {
+            background: radial-gradient(circle at 30% 30%, #f87171, #ef4444);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+
+        @keyframes drop {
+            from {
+                transform: translateY(-400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .winning-disc {
+            animation: pulse 0.6s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.1);
+            }
+        }
+
+        .reset-btn {
+            margin-top: 25px;
+            padding: 15px 40px;
+            font-size: 1.1em;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .reset-btn:hover {
+            background: #764ba2;
+            transform: scale(1.05);
+        }
+
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: repeat(7, 45px);
+                grid-template-rows: repeat(6, 45px);
+                gap: 6px;
+            }
+
+            .cell {
+                width: 45px;
+                height: 45px;
+            }
+
+            .disc {
+                width: 38px;
+                height: 38px;
+            }
+
+            .column-btn {
+                padding: 8px;
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎮 Forza 4 🎮</h1>
+        <div id="status" class="status player1-turn">Turno: Giocatore 1 (Giallo)</div>
+        
+        <div class="board">
+            <div class="column-buttons" id="columnButtons"></div>
+            <div class="grid" id="grid"></div>
+        </div>
+        
+        <button class="reset-btn" onclick="resetGame()">Nuova Partita</button>
+    </div>
+
+    <script>
+        const ROWS = 6;
+        const COLS = 7;
+        let board = [];
+        let currentPlayer = 1;
+        let gameOver = false;
+        let winningCells = [];
+
+        function initGame() {
+            board = Array(ROWS).fill().map(() => Array(COLS).fill(0));
+            currentPlayer = 1;
+            gameOver = false;
+            winningCells = [];
+            createBoard();
+            updateStatus();
+        }
+
+        function createBoard() {
+            const gridEl = document.getElementById('grid');
+            const buttonsEl = document.getElementById('columnButtons');
+            gridEl.innerHTML = '';
+            buttonsEl.innerHTML = '';
+
+            for (let col = 0; col < COLS; col++) {
+                const btn = document.createElement('button');
+                btn.className = 'column-btn';
+                btn.textContent = '↓';
+                btn.onclick = () => dropDisc(col);
+                buttonsEl.appendChild(btn);
+            }
+
+            for (let row = 0; row < ROWS; row++) {
+                for (let col = 0; col < COLS; col++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.id = `cell-${row}-${col}`;
+                    gridEl.appendChild(cell);
+                }
+            }
+        }
+
+        function dropDisc(col) {
+            if (gameOver) return;
+
+            for (let row = ROWS - 1; row >= 0; row--) {
+                if (board[row][col] === 0) {
+                    board[row][col] = currentPlayer;
+                    renderDisc(row, col, currentPlayer);
+                    
+                    if (checkWin(row, col)) {
+                        gameOver = true;
+                        highlightWinningCells();
+                        updateStatus(true);
+                        disableAllButtons();
+                    } else if (isBoardFull()) {
+                        gameOver = true;
+                        updateStatus(false, true);
+                    } else {
+                        currentPlayer = currentPlayer === 1 ? 2 : 1;
+                        updateStatus();
+                    }
+                    return;
+                }
+            }
+        }
+
+        function renderDisc(row, col, player) {
+            const cell = document.getElementById(`cell-${row}-${col}`);
+            const disc = document.createElement('div');
+            disc.className = `disc player${player}`;
+            cell.appendChild(disc);
+        }
+
+        function checkWin(row, col) {
+            return checkDirection(row, col, 0, 1) ||  // Orizzontale
+                   checkDirection(row, col, 1, 0) ||  // Verticale
+                   checkDirection(row, col, 1, 1) ||  // Diagonale /
+                   checkDirection(row, col, 1, -1);   // Diagonale \
+        }
+
+        function checkDirection(row, col, dRow, dCol) {
+            const player = board[row][col];
+            let count = 1;
+            let cells = [[row, col]];
+
+            // Controlla in una direzione
+            for (let i = 1; i < 4; i++) {
+                const r = row + dRow * i;
+                const c = col + dCol * i;
+                if (r >= 0 && r < ROWS && c >= 0 && c < COLS && board[r][c] === player) {
+                    count++;
+                    cells.push([r, c]);
+                } else break;
+            }
+
+            // Controlla nella direzione opposta
+            for (let i = 1; i < 4; i++) {
+                const r = row - dRow * i;
+                const c = col - dCol * i;
+                if (r >= 0 && r < ROWS && c >= 0 && c < COLS && board[r][c] === player) {
+                    count++;
+                    cells.push([r, c]);
+                } else break;
+            }
+
+            if (count >= 4) {
+                winningCells = cells;
+                return true;
+            }
+            return false;
+        }
+
+        function highlightWinningCells() {
+            winningCells.forEach(([row, col]) => {
+                const cell = document.getElementById(`cell-${row}-${col}`);
+                const disc = cell.querySelector('.disc');
+                if (disc) {
+                    disc.classList.add('winning-disc');
+                }
+            });
+        }
+
+        function isBoardFull() {
+            return board[0].every(cell => cell !== 0);
+        }
+
+        function updateStatus(won = false, draw = false) {
+            const statusEl = document.getElementById('status');
+            statusEl.className = 'status';
+            
+            if (won) {
+                statusEl.textContent = `🎉 Giocatore ${currentPlayer} ha vinto! 🎉`;
+                statusEl.classList.add('winner');
+            } else if (draw) {
+                statusEl.textContent = '🤝 Pareggio! 🤝';
+                statusEl.classList.add('draw');
+            } else {
+                const playerName = currentPlayer === 1 ? 'Giocatore 1 (Giallo)' : 'Giocatore 2 (Rosso)';
+                statusEl.textContent = `Turno: ${playerName}`;
+                statusEl.classList.add(`player${currentPlayer}-turn`);
+            }
+        }
+
+        function disableAllButtons() {
+            const buttons = document.querySelectorAll('.column-btn');
+            buttons.forEach(btn => btn.disabled = true);
+        }
+
+        function resetGame() {
+            initGame();
+        }
+
+        initGame();
+    </script>
+</body>
+</html>
